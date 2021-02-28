@@ -1,4 +1,5 @@
 alabaster==0.7.12
+albumentations==0.5.2
 anaconda-client==1.7.2
 anaconda-navigator==1.10.0
 anaconda-project==0.8.3
@@ -68,6 +69,7 @@ html5lib @ file:///tmp/build/80754af9/html5lib_1593446221756/work
 idna @ file:///tmp/build/80754af9/idna_1593446292537/work
 imageio @ file:///tmp/build/80754af9/imageio_1594161405741/work
 imagesize==1.2.0
+imgaug==0.4.0
 importlib-metadata @ file:///tmp/build/80754af9/importlib-metadata_1602276842396/work
 iniconfig @ file:///tmp/build/80754af9/iniconfig_1602780191262/work
 intervaltree @ file:///tmp/build/80754af9/intervaltree_1598376443606/work
@@ -123,6 +125,8 @@ numexpr==2.7.1
 numpy @ file:///opt/concourse/worker/volumes/live/5572694e-967a-4c0c-52cf-b53d43e72de9/volume/numpy_and_numpy_base_1603491881791/work
 numpydoc @ file:///tmp/build/80754af9/numpydoc_1605117425582/work
 olefile==0.46
+opencv-python==4.5.1.48
+opencv-python-headless==4.5.1.48
 openpyxl @ file:///tmp/build/80754af9/openpyxl_1598113097404/work
 packaging==20.4
 pandas @ file:///opt/concourse/worker/volumes/live/f14cf8c4-c564-4eff-4b17-158e90dbf88a/volume/pandas_1602088128240/work
@@ -180,6 +184,7 @@ scikit-learn @ file:///opt/concourse/worker/volumes/live/111833a2-339b-4578-413b
 scipy @ file:///opt/concourse/worker/volumes/live/851446f6-a052-41c4-4243-67bb78999b49/volume/scipy_1604596178167/work
 seaborn @ file:///tmp/build/80754af9/seaborn_1600553570093/work
 Send2Trash==1.5.0
+Shapely==1.7.1
 simplegeneric==0.8.1
 singledispatch @ file:///tmp/build/80754af9/singledispatch_1602523705405/work
 six @ file:///opt/concourse/worker/volumes/live/5b31cb27-1e37-4ca5-6e9f-86246eb206d2/volume/six_1605205320872/work
@@ -208,6 +213,7 @@ threadpoolctl @ file:///tmp/tmp9twdgx9k/threadpoolctl-2.1.0-py3-none-any.whl
 tifffile==2020.10.1
 toml @ file:///tmp/build/80754af9/toml_1592853716807/work
 toolz @ file:///tmp/build/80754af9/toolz_1601054250827/work
+torch==1.7.1
 tornado==6.0.4
 tqdm @ file:///tmp/build/80754af9/tqdm_1602185206534/work
 traitlets @ file:///tmp/build/80754af9/traitlets_1602787416690/work

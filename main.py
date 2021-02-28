@@ -1,7 +1,8 @@
 import argparse
+import sys
+
 import archs
 import losses
-
 from utils import str2bool
 from train import train_entry
 from test import test_entry
@@ -11,16 +12,6 @@ ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
 
-"""restrict GPU option"""
-# find most open GPU (default use 8 gpus)
-# gpu_list = get_default_gpus(4)
-# gpu_ids = ','.join(map(str, gpu_list))
-#
-# allocate GPU
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids
-#
-# #print("Allocated GPU %s" % gpu_ids)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -94,24 +85,6 @@ def parse_args():
 if __name__ == '__main__':
     config = vars(parse_args())
 
-    # if config['name'] is None:
-    #     if config['deep_supervision']:
-    #         config['name'] = '%s_%s_%s_wDS_%s_%s' % (config['dataset'], config['sub_dataset'], config['arch'], ix, ix_sum)
-    #     else:
-    #         config['name'] = '%s_%s_%s_woDS_%s_%s' % (config['dataset'], config['sub_dataset'], config['arch'], ix, ix_sum)
-
-    if config['name'] is None:
-        if config['deep_supervision']:
-            config['name'] = '%s_%s_%s_%s_wDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
-        else:
-            config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
-
-    # iou_sc = []
-    # for ix in range(num_fold):
-    #     iou_sc.append(train_once(num_fold, ix))
-    #
-    # print('iou_sc', iou_sc, np.mean(iou_sc))
-
     if config['train']:
         # train
         iou = train_entry(config, ix_sum=10)
@@ -119,5 +92,6 @@ if __name__ == '__main__':
     elif config['test']:
         # test
         test_entry(config)
-    elif config['two_step_test']:
-        two_step_test_entry(config)
+    else:
+	    print(F"oops, unsupported config: {config}")
+	    sys.exit(1)
