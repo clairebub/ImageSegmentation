@@ -1,18 +1,41 @@
-import argparse
+import os
 import sys 
 
+import argparse
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
+import pytorch_lightning as pl
 
 import archs
+import data_module
 import losses
+import unet
 
 ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
+   
 
+def main(config):
+    data_dir = os.path.join('data', config['dataset'], config['sub_dataset']) 
+    train_transform = Compose([
+        transforms.RandomRotate90(),
+        transforms.Flip(),
+        transforms.Resize(config['input_h'], config['input_w']),
+    ])
+    val_transform = Compose([
+        transforms.Resize(config['input_h'], config['input_w']),
+    ])
+    dm = data_module.DataModule(data_dir, config['batch_size'], train_transform, val_transform)
+    dm.prepare_data()
+    dm.setup()
 
-def parse_args():
+    # train the nested-unet model
+    model = unet.NestedUNet(num_classes=1, epochs=config['epochs'])
+    trainer = pl.Trainer()
+    trainer.fit(model, dm.train_dataloader())
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
@@ -40,34 +63,11 @@ def parse_args():
 
     # dataset
     parser.add_argument('--dataset', default='0420', help='dataset name')
-    parser.add_argument('--sub_dataset', default='lung', help='sub_dataset name')
+    parser.add_argument('--sub_dataset', default='disease', help='sub_dataset name')
     parser.add_argument('--img_ext', default='.jpg', help='image file extension')
     parser.add_argument('--mask_ext', default='.png', help='mask file extension')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')
 
-    config = parser.parse_args()
-
-    return config
-
-
-if __name__ == '__main__':
-    config = vars(parse_args())
-
-    data_dir = os.path.join('data', config['dataset'], config['sub_dataset']) 
-    train_transform = Compose([
-        transforms.RandomRotate90(),
-        transforms.Flip(),
-        transforms.Resize(config['input_h'], config['input_w']),
-    ])
-    val_transform = Compose([
-        transforms.Resize(config['input_h'], config['input_w']),
-    ])
-    data_module = DataModule(data_dir, config['batch_size'], train_transform, val_transform)
-    data_module.prepare_data()
-    data_module.setup()
-
-    # train the nested-unet model
-    model = NestedUNet()
-    trainer = pl.Trainer()
-    trainer.fit(model, data_module.train_dataloader())
+    config = vars(parser.parse_args())
+    main(config)

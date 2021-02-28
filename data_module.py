@@ -30,7 +30,7 @@ class DataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         # This method is used to define the process that is meant to be performed by all the available GPU. 
         # It’s usually used to handle the task of loading the data. 
-        img_files = glob(os.path.join(data_dir, 'images', '*.jpg'))
+        img_files = glob(os.path.join(self.data_dir, 'images', '*.jpg'))
         img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_files]
         train_size = int(len(img_ids) * 0.9)
         val_size = len(img_ids) - train_size

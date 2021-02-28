@@ -1,10 +1,12 @@
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 import torch
-from torch import nn
+from torch import optim, nn
+from torch.optim import lr_scheduler
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 
+from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 
 class VGGBlock(nn.Module):
 
@@ -30,8 +32,10 @@ class VGGBlock(nn.Module):
 
 class NestedUNet(pl.LightningModule):
 
-    def __init__(self, num_classes, input_channels=3, deep_supervision=False, **kwargs):
+    def __init__(self, num_classes, epochs=1, input_channels=3, deep_supervision=False, **kwargs):
         super().__init__()
+        self.criterion = BCEDiceLoss()
+        self.epochs = epochs
 
         nb_filter = [32, 64, 128, 256, 512]
 
@@ -99,10 +103,32 @@ class NestedUNet(pl.LightningModule):
             return output
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, _ = batch
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
+        loss = self.criterion(x, y_hat, y)
         return loss
-    
+
+    def validation_step(self, batch, batch_idx):
+        x, y, _ = batch
+        y_hat = self(x)
+        loss = self.criterion(x, y_hat, y)
+        self.log(F"deebug: validation loss={loss}")
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        x, y, _ = batch
+        y_hat = self(x)
+        loss = self.criterion(x, y_hat, y)
+        self.log(F"deebug: test loss={loss}")
+        return loss
+
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.02)
+        print(F"deebug: configure optimizers")
+        lr = 1e-3
+        momentum = 0.9
+        weight_decay = 1e-4
+        nesterov = False
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        sgd = optim.SGD(params, lr=lr, momentum=momentum, weight_decay=weight_decay)
+        scheduler = lr_scheduler.CosineAnnealingLR(sgd, self.epochs)
+        return [sgd], [scheduler]
