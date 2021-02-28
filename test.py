@@ -30,8 +30,8 @@ def test(config, test_loader, model):
     with torch.no_grad():
         pbar = tqdm(total=len(test_loader))
         for input, target, meta in test_loader:
-            input = input.cuda()
-            target = target.cuda()
+            #input = input.cuda()
+            #target = target.cuda()
 
             # compute output
             if config['deep_supervision']:
@@ -69,8 +69,8 @@ def test_per_class(config, test_loader, model):
 
     with torch.no_grad():
         for input, target, _ in test_loader:
-            input = input.cuda()
-            target = target.cuda()
+            #input = input.cuda()
+            #target = target.cuda()
 
             # compute output
             if config['deep_supervision']:
@@ -108,7 +108,7 @@ def predict(config, test_loader, model):
     with torch.no_grad():
         pbar = tqdm(total=len(test_loader))
         for input, target, meta in test_loader:
-            input = input.cuda()
+            #input = input.cuda()
             # target = target.cuda()
 
             # compute output
@@ -161,7 +161,7 @@ def test_entry(config, ix_sum=10, ix=0):
     print("Reloading model 'models/%s/model.pth'..." % config['name'])
     model.load_state_dict(torch.load('models/%s/model.pth' % config['name']))
 
-    model = model.cuda()
+    #model = model.cuda()
 
     # Data loading code
     data_path = os.path.join('data', config['dataset'])

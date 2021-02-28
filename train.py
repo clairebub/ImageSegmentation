@@ -257,17 +257,6 @@ def train_entry(config, ix_sum=10, ix=0):
         split_file = open(split_filename, 'rb')
         train_img_ids, val_img_ids = pickle.load(split_file)
 
-    # 5 fold validation
-
-    # img_ids = os.listdir(os.path.join('inputs', config['dataset'], 'images'))
-    # data_src = list(set([e.split('-')[0] for e in img_ids]))
-    # print (data_src)
-    # np.random.shuffle(data_src)
-    # val_size = int(len(data_src) * 0.2)
-    # train_src, val_src = data_src[:train_size], data_src[train_size:]
-    # train_img_ids = [e.split('.')[0] for e in img_ids if e.split('-')[0] in train_src]
-    # val_img_ids = [e.split('.')[0] for e in img_ids if e.split('-')[0] in val_src]
-
     '''
     Since it is gray image, some augmentation methods not used
     '''

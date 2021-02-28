@@ -1,7 +1,6 @@
-import os
-
 import cv2
 import numpy as np
+import os
 import torch
 import torch.utils.data
 
@@ -54,41 +53,30 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         img_id = self.img_ids[idx]
-        
-        # img = cv2.imread(os.path.join(self.img_dir, img_id))
         img = cv2.imread(os.path.join(self.img_dir, img_id + self.img_ext))
-        # img = cv2.imread(os.path.join(self.img_dir, img_id + self.img_ext), cv2.IMREAD_GRAYSCALE)[..., None]
 
         mask = []
         for i in range(self.num_classes):
-            # tmp = cv2.imread(os.path.join(self.mask_dir, str(i), img_id), cv2.IMREAD_GRAYSCALE)[..., None]
-
-            # tmp = cv2.imread(os.path.join(self.mask_dir, str(i), img_id + self.mask_ext), cv2.IMREAD_GRAYSCALE)[..., None]
-
             try:
                 tmp = cv2.imread(os.path.join(self.mask_dir, str(i), img_id + self.mask_ext), cv2.IMREAD_GRAYSCALE)[..., None]
             except:
                 raise RuntimeError(os.path.join(self.mask_dir, str(i), img_id + self.mask_ext))
 
+            # negative gray scale value -> 255
             if i == 0:
                 tmp[tmp > 0] = 255
             mask.append(tmp)
         mask = np.dstack(mask)
-
-        # mean, sd = 109.9, 96.6  # covid
-        # # mean, sd = 130.4, 90.4 # lesion
-        # img = (img - mean) / sd
-
-        # img = img.astype('float32') / 255
-        # mask = mask.astype('float32') / 255
 
         if self.transform is not None:
             augmented = self.transform(image=img, mask=mask)
             img = augmented['image']
             mask = augmented['mask']
 
+        # (channel, width, height) in float32
         img = img.astype('float32') / 255
         img = img.transpose(2, 0, 1)
+        # (class, width, height) in float32
         mask = mask.astype('float32') / 255
         mask = mask.transpose(2, 0, 1)
 
