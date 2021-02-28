@@ -2,10 +2,10 @@
 This repository contains code for a image segmentation model based on [UNet++: A Nested U-Net Architecture for Medical Image Segmentation](https://arxiv.org/abs/1807.10165) implemented in PyTorch.
 
 ## Installation
-1. Create an anaconda environment.
+1. Create python virtual environment.
 ```sh
-conda create -n=<env_name> python=3.6 --file requirements.txt
-conda activate <env_name>
+python -m venv venv
+pip install -r requirements.txt
 ```
 
 ## Training on original dataset
@@ -35,7 +35,7 @@ inputs
 
 1. Train the model.
 ```
-python train.py --dataset <dataset name> --arch NestedUNet --img_ext .jpg --mask_ext .png
+python entry.py --train --dataset <dataset name> --epoch 3 -b 4 
 ```
 2. Evaluate.
 ```
