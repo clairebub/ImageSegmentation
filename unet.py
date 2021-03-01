@@ -124,7 +124,6 @@ class NestedUNet(pl.LightningModule):
         self.avg_meters['loss'].update(loss.item(), x.size(0))
         self.avg_meters['iou'].update(iou, x.size(0))
         self.avg_meters['dice'].update(dice, x.size(0))
-        print('deebug: training_avg_meters', self.avg_meters['loss'])
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -136,7 +135,6 @@ class NestedUNet(pl.LightningModule):
     def validation_step_end(self, batch_parts):
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        print('deebug: validation_loss', loss)
         self.log('validation_loss', loss, on_step=True)
         return loss
 

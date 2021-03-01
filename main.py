@@ -80,4 +80,6 @@ if __name__ == '__main__':
     parser.add_argument('--input_h', default=512, type=int, help='image height')
 
     config = vars(parser.parse_args())
+    if config['name'] is None:
+        config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
     main(config)

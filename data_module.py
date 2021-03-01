@@ -39,22 +39,23 @@ class DataModule(pl.LightningDataModule):
             img_ids, [train_size, val_size], generator=torch.Generator().manual_seed(41))
 
     def train_dataloader(self):
-        return self._create_dataloader(self.train_ids, True, self.train_transform)
+        return self._create_dataloader(self.train_ids, True, False, self.train_transform)
 
     def val_dataloader(self):
-        return self._create_dataloader(self.val_ids, False, self.val_transform)
+        return self._create_dataloader(self.val_ids, False, True, self.val_transform)
 
     def test_dataloader(self):
         raise NotImplementedError
 
-    def _create_dataloader(self, img_ids, shuffle, transform):
+    def _create_dataloader(self, img_ids, shuffle, drop_last, transform):
         dataset = Dataset(
             img_ids,
             os.path.join(self.data_dir, 'images'),
             os.path.join(self.data_dir, 'masks'),
             self.img_ext,
             self.mask_ext,
-            self.num_classes)
+            self.num_classes, 
+            transform)
 
         return torch.utils.data.DataLoader(
             dataset,
@@ -62,7 +63,7 @@ class DataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             shuffle=shuffle,
-            drop_last=True)
+            drop_last=drop_last)
 
 if __name__ == '__main__':
     data_dir = 'data/0420/lung'
