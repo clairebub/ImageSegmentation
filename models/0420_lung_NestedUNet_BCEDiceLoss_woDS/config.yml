@@ -1,9 +1,9 @@
 arch: NestedUNet
-batch_size: 4
+batch_size: 8
 dataset: '0420'
 deep_supervision: false
 early_stopping: -1
-epochs: 3
+epochs: 300
 factor: 0.1
 gamma: 0.6666666666666666
 img_ext: .jpg

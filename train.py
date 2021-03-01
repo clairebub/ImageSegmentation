@@ -36,8 +36,8 @@ def train(config, train_loader, model, criterion, optimizer):
         # input --> bz * channel(3) * h * w
         # target --> bz * 1 * h * w
         # print ('---', input.size())
-        #input = input.cuda()
-        #target = target.cuda()
+        input = input.cuda()
+        target = target.cuda()
 
         # compute output
         if config['deep_supervision']:
@@ -138,8 +138,8 @@ def validate(config, val_loader, model, criterion):
     with torch.no_grad():
         pbar = tqdm(total=len(val_loader))
         for input, target, _ in val_loader:
-            #input = input.cuda()
-            #target = target.cuda()
+            input = input.cuda()
+            target = target.cuda()
 
             # compute output
 
@@ -193,11 +193,9 @@ def train_entry(config, ix_sum=10, ix=0):
 
     # define loss function (criterion)
     if config['loss'] == 'BCEWithLogitsLoss':
-        #criterion = nn.BCEWithLogitsLoss().cuda()
-        criterion = nn.BCEWithLogitsLoss()
+        criterion = nn.BCEWithLogitsLoss().cuda()
     else:
-        #criterion = losses.__dict__[config['loss']]().cuda()
-        criterion = losses.__dict__[config['loss']]()
+        criterion = losses.__dict__[config['loss']]().cuda()
 
     cudnn.benchmark = True
 
@@ -210,7 +208,7 @@ def train_entry(config, ix_sum=10, ix=0):
                                  config['deep_supervision'])
 
     model = nn.DataParallel(model)
-    #model = model.cuda()
+    model = model.cuda()
 
     # load trained model
     model_file = 'models/%s/model.pth' % config['name']
@@ -422,7 +420,6 @@ def train_entry(config, ix_sum=10, ix=0):
             print("=> early stopping")
             break
 
-        #torch.cuda.empty_cache()
         torch.cuda.empty_cache()
 
         print("\n[Best Results:]")

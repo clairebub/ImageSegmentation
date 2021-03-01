@@ -55,16 +55,9 @@ def parse_args():
 
     # dataset
     parser.add_argument('--dataset', default='0420', help='dataset name')
-    # parser.add_argument('--dataset', default='cc_ccii', help='dataset name')
-    parser.add_argument('--dataset', default='ieee8023', help='dataset name')
-    # parser.add_argument('--dataset', default='NSCLC', help='dataset name')
-    # parser.add_argument('--sub_dataset', default='lung_disease', help='sub_dataset name')
-    # parser.add_argument('--sub_dataset', default='disease', help='sub_dataset name')
-    # parser.add_argument('--sub_dataset', default='disease_segmented_NSCLC', help='sub_dataset name')
     parser.add_argument('--sub_dataset', default='lung', help='sub_dataset name')
     parser.add_argument('--img_ext', default='.jpg', help='image file extension')
     parser.add_argument('--mask_ext', default='.png', help='mask file extension')
-
     parser.add_argument('--num_classes', default=1, type=int, help='number of classes')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')
