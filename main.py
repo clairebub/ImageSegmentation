@@ -5,6 +5,7 @@ import argparse
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
 import pytorch_lightning as pl
+import yaml
 
 import archs
 import data_module
@@ -17,6 +18,16 @@ LOSS_NAMES.append('BCEWithLogitsLoss')
    
 
 def main(config): 
+    os.makedirs('models/%s' % config['name'], exist_ok=True)
+
+    print('-' * 20)
+    for key in config:
+        print('%s: %s' % (key, config[key]))
+    print('-' * 20)
+
+    with open('models/%s/config.yml' % config['name'], 'w') as f:
+        yaml.dump(config, f)
+
     train_transform = Compose([
         transforms.RandomRotate90(),
         transforms.Flip(),
@@ -49,7 +60,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
     parser.add_argument('--epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
+    parser.add_argument('-b', '--batch_size', default=8, type=int, metavar='N', help='mini-batch size')
     parser.add_argument('--gpus', default=2, type=int, metavar='N', help='number of gpus')
 
     # train/test
