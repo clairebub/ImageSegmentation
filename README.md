@@ -36,7 +36,7 @@ inputs
 1. Train the model.
 ```
 source venv/bin/activate
-python main.py --train --dataset <dataset name> --epoch 3 -b 4 
+python main.py
 ```
 2. Evaluate.
 ```
