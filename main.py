@@ -16,8 +16,7 @@ LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
    
 
-def main(config):
-    data_dir = os.path.join('data', config['dataset'], config['sub_dataset']) 
+def main(config): 
     train_transform = Compose([
         transforms.RandomRotate90(),
         transforms.Flip(),
@@ -26,14 +25,24 @@ def main(config):
     val_transform = Compose([
         transforms.Resize(config['input_h'], config['input_w']),
     ])
-    dm = data_module.DataModule(data_dir, config['batch_size'], train_transform, val_transform)
+    dm = data_module.DataModule(config, train_transform, val_transform)
     dm.prepare_data()
     dm.setup()
 
     # train the nested-unet model
     model = unet.NestedUNet(num_classes=1, epochs=config['epochs'])
-    trainer = pl.Trainer()
-    trainer.fit(model, dm.train_dataloader())
+    trainer = pl.Trainer(
+        check_val_every_n_epoch=1,
+        distributed_backend='ddp', 
+        gpus=config['gpus'],
+        precision=16, 
+#        profiler='simple', 
+        max_epochs=config['epochs'])
+    trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
+
+    # testing
+    #result = trainer.test(test_dataloaders=dm.test_loader())
+    #print(result)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -41,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
     parser.add_argument('--epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
+    parser.add_argument('--gpus', default=2, type=int, metavar='N', help='number of gpus')
 
     # train/test
     parser.add_argument('--train', action='store_true')

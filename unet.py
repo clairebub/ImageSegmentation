@@ -7,6 +7,8 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 
 from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
+from metrics import iou_score, dice_coef
+from utils import AverageMeter
 
 class VGGBlock(nn.Module):
 
@@ -34,6 +36,10 @@ class NestedUNet(pl.LightningModule):
 
     def __init__(self, num_classes, epochs=1, input_channels=3, deep_supervision=False, **kwargs):
         super().__init__()
+        self.avg_meters = {
+            'loss': AverageMeter(),
+            'iou': AverageMeter(),
+            'dice': AverageMeter()}
         self.criterion = BCEDiceLoss()
         self.epochs = epochs
 
@@ -105,29 +111,46 @@ class NestedUNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
+        
+        return x, y, y_hat
+
+    def training_step_end(self, batch_parts):
+        x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
+        self.log('training_loss', loss, on_step=True)
+
+        iou = iou_score(y_hat, y)
+        dice = dice_coef(y_hat, y)
+        self.avg_meters['loss'].update(loss.item(), x.size(0))
+        self.avg_meters['iou'].update(iou, x.size(0))
+        self.avg_meters['dice'].update(dice, x.size(0))
+        print('deebug: training_avg_meters', self.avg_meters['loss'])
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
+        return x, y, y_hat
+  
+
+    def validation_step_end(self, batch_parts):
+        x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        self.log(F"deebug: validation loss={loss}")
+        print('deebug: validation_loss', loss)
+        self.log('validation_loss', loss, on_step=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
         loss = self.criterion(x, y_hat, y)
-        self.log(F"deebug: test loss={loss}")
+        self.log('test_loss', loss, on_step=True)
         return loss
 
     def configure_optimizers(self):
-        print(F"deebug: configure optimizers")
         lr = 1e-3
         momentum = 0.9
         weight_decay = 1e-4
-        nesterov = False
         params = filter(lambda p: p.requires_grad, self.parameters())
         sgd = optim.SGD(params, lr=lr, momentum=momentum, weight_decay=weight_decay)
         scheduler = lr_scheduler.CosineAnnealingLR(sgd, self.epochs)

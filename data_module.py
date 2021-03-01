@@ -9,13 +9,14 @@ from dataset import Dataset
 
 class DataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir, batch_size=1, train_transform=None, val_transform=None, test_transform=None):
+    def __init__(self, config, train_transform=None, val_transform=None, test_transform=None):
         super().__init__()
         self.img_ext = '.jpg'
         self.mask_ext = '.png'
         self.num_classes = 1
-        self.data_dir = data_dir
-        self.batch_size = batch_size
+        self.num_workers = 4 * config['gpus']
+        self.data_dir = os.path.join('data', config['dataset'], config['sub_dataset'])
+        self.batch_size = config['batch_size']
         self.train_transform = train_transform
         self.val_transform = val_transform
         self.test_transform = test_transform
@@ -38,15 +39,15 @@ class DataModule(pl.LightningDataModule):
             img_ids, [train_size, val_size], generator=torch.Generator().manual_seed(41))
 
     def train_dataloader(self):
-        return self._create_dataloader(self.train_ids, self.train_transform)
+        return self._create_dataloader(self.train_ids, True, self.train_transform)
 
     def val_dataloader(self):
-        return self._create_dataloader(self.val_ids, self.val_transform)
+        return self._create_dataloader(self.val_ids, False, self.val_transform)
 
     def test_dataloader(self):
         raise NotImplementedError
 
-    def _create_dataloader(self, img_ids, transform):
+    def _create_dataloader(self, img_ids, shuffle, transform):
         dataset = Dataset(
             img_ids,
             os.path.join(self.data_dir, 'images'),
@@ -58,7 +59,9 @@ class DataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset,
             self.batch_size,
-            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            shuffle=shuffle,
             drop_last=True)
 
 if __name__ == '__main__':
