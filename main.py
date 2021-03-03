@@ -46,7 +46,7 @@ def main(config):
         check_val_every_n_epoch=1,
         distributed_backend='ddp', 
         gpus=config['gpus'],
-        precision=16, 
+        precision=config['precision'], 
 #        profiler='simple', 
         max_epochs=config['epochs'])
     trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('-b', '--batch_size', default=8, type=int, metavar='N', help='mini-batch size')
     parser.add_argument('--gpus', default=2, type=int, metavar='N', help='number of gpus')
+    parser.add_argument('--precision', default=32, type=int, metavar='N', help='floating number precision')
 
     # train/test
     parser.add_argument('--train', action='store_true')
