@@ -203,7 +203,7 @@ def train_entry(config, ix_sum=10, ix=0):
     arch = config['arch'].split('_')[0]
 
     print("=> creating model %s" % arch)
-    model = archs.__dict__[arch](config['num_classes'],
+    model = getattr(archs, arch)(config['num_classes'],
                                  config['input_channels'],
                                  config['deep_supervision'])
 

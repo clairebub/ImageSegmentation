@@ -60,8 +60,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
     parser.add_argument('--epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('-b', '--batch_size', default=8, type=int, metavar='N', help='mini-batch size')
-    parser.add_argument('--gpus', default=2, type=int, metavar='N', help='number of gpus')
+    parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
+    parser.add_argument('--gpus', default=0, type=int, metavar='N', help='number of gpus')
     parser.add_argument('--precision', default=32, type=int, metavar='N', help='floating number precision')
 
     # train/test
