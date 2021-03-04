@@ -1,3 +1,5 @@
+import os
+
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 import torch
@@ -9,6 +11,14 @@ from torch.utils.data import DataLoader, random_split
 from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 from metrics import iou_score, dice_coef
 from utils import AverageMeter
+
+def print_mem_info(msg=""):
+    t = torch.cuda.get_device_properties(0).total_memory
+    r = torch.cuda.memory_reserved(0) 
+    a = torch.cuda.memory_allocated(0)
+    f = r-a  # free inside reserved
+    print(f'deebug {msg}: t={t}, r={r}, a={a}, f={f}')
+
 
 class VGGBlock(nn.Module):
 
@@ -34,18 +44,27 @@ class VGGBlock(nn.Module):
 
 class NestedUNet(pl.LightningModule):
 
-    def __init__(self, num_classes, epochs=1, input_channels=3, deep_supervision=False, **kwargs):
+    def __init__(self, config, **kwargs):
         super().__init__()
         self.avg_meters = {
             'loss': AverageMeter(),
             'iou': AverageMeter(),
             'dice': AverageMeter()}
         self.criterion = BCEDiceLoss()
-        self.epochs = epochs
+        self.epochs = config['epochs']
+
+        # load trained model
+        self.model_file = 'models/%s/model.pth' % config['name']
+        if os.path.isfile(self.model_file):
+            print("Reloading model ...")
+            self.load_state_dict(torch.load(self.model_file))
+
 
         nb_filter = [32, 64, 128, 256, 512]
+        num_classes = config['num_classes']
+        input_channels = config['input_channels']
 
-        self.deep_supervision = deep_supervision
+        self.deep_supervision = config['deep_supervision']
 
         self.pool = nn.MaxPool2d(2, 2)
         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
@@ -109,6 +128,7 @@ class NestedUNet(pl.LightningModule):
             return output
 
     def training_step(self, batch, batch_idx):
+        print_mem_info(f"batch={batch_idx}")
         x, y, _ = batch
         y_hat = self(x)
         
@@ -124,11 +144,12 @@ class NestedUNet(pl.LightningModule):
         self.avg_meters['loss'].update(loss.item(), x.size(0))
         self.avg_meters['iou'].update(iou, x.size(0))
         self.avg_meters['dice'].update(dice, x.size(0))
-        return loss
+        return self.avg_meters
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
+        print(f'deebug: validating')
         return x, y, y_hat
   
 
