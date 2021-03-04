@@ -1,10 +1,12 @@
 import os
-import sys 
+import sys
+from utils import str2bool 
 
 import argparse
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
 import pytorch_lightning as pl
+import torch
 import yaml
 
 import archs
@@ -16,6 +18,12 @@ ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
    
+def print_mem_info(msg=""):
+    t = torch.cuda.get_device_properties(0).total_memory
+    r = torch.cuda.memory_reserved(0) 
+    a = torch.cuda.memory_allocated(0)
+    f = r-a  # free inside reserved
+    print(f'deebug {msg}: t={t}, r={r}, a={a}, f={f}')
 
 def main(config): 
     os.makedirs('models/%s' % config['name'], exist_ok=True)
@@ -40,8 +48,14 @@ def main(config):
     dm.prepare_data()
     dm.setup()
 
-    # train the nested-unet model
-    model = unet.NestedUNet(num_classes=1, epochs=config['epochs'])
+    print_mem_info("1")
+    if(config['gpus'] != 0):
+        torch.cuda.empty_cache()
+    print_mem_info("2")
+
+    # train the nested-unet model    
+    model = unet.NestedUNet(config)
+    print_mem_info("3")
     trainer = pl.Trainer(
         check_val_every_n_epoch=1,
         distributed_backend='ddp', 
@@ -49,6 +63,7 @@ def main(config):
         precision=config['precision'], 
 #        profiler='simple', 
         max_epochs=config['epochs'])
+    print_mem_info("4")
     trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
 
     # testing
@@ -71,12 +86,12 @@ if __name__ == '__main__':
     parser.add_argument('--predict', action='store_true')
     parser.add_argument('--seg_img', default='seg_img', choices=['seg_only', 'seg_img', 'gt', 'crop_img'])
 
-
     # model
     parser.add_argument('--arch', '-a', metavar='ARCH', default='NestedUNet',
                         help='model architecture: ' +
                         ' | '.join(ARCH_NAMES) +
                         ' (default: NestedUNet)')
+    parser.add_argument('--deep_supervision', default=False, type=str2bool)
     parser.add_argument('--loss', default='BCEDiceLoss',
                         choices=LOSS_NAMES,
                         help='loss: ' +
@@ -88,6 +103,8 @@ if __name__ == '__main__':
     parser.add_argument('--sub_dataset', default='disease', help='sub_dataset name')
     parser.add_argument('--img_ext', default='.jpg', help='image file extension')
     parser.add_argument('--mask_ext', default='.png', help='mask file extension')
+    parser.add_argument('--input_channels', default=3, type=int, help='input channels') # 1 or 3        
+    parser.add_argument('--num_classes', default=1, type=int, help='number of classes')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')
 
