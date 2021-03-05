@@ -17,13 +17,6 @@ import unet
 ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
-   
-def print_mem_info(msg=""):
-    t = torch.cuda.get_device_properties(0).total_memory
-    r = torch.cuda.memory_reserved(0) 
-    a = torch.cuda.memory_allocated(0)
-    f = r-a  # free inside reserved
-    print(f'deebug {msg}: t={t}, r={r}, a={a}, f={f}')
 
 def main(config): 
     os.makedirs('models/%s' % config['name'], exist_ok=True)
@@ -48,14 +41,11 @@ def main(config):
     dm.prepare_data()
     dm.setup()
 
-    print_mem_info("1")
     if(config['gpus'] != 0):
         torch.cuda.empty_cache()
-    print_mem_info("2")
 
     # train the nested-unet model    
     model = unet.NestedUNet(config)
-    print_mem_info("3")
     trainer = pl.Trainer(
         check_val_every_n_epoch=1,
         distributed_backend='ddp', 
@@ -63,7 +53,6 @@ def main(config):
         precision=config['precision'], 
 #        profiler='simple', 
         max_epochs=config['epochs'])
-    print_mem_info("4")
     trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
 
     # testing

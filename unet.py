@@ -12,13 +12,6 @@ from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 from metrics import iou_score, dice_coef
 from utils import AverageMeter
 
-def print_mem_info(msg=""):
-    t = torch.cuda.get_device_properties(0).total_memory
-    r = torch.cuda.memory_reserved(0) 
-    a = torch.cuda.memory_allocated(0)
-    f = r-a  # free inside reserved
-    print(f'deebug {msg}: t={t}, r={r}, a={a}, f={f}')
-
 
 class VGGBlock(nn.Module):
 
@@ -128,28 +121,28 @@ class NestedUNet(pl.LightningModule):
             return output
 
     def training_step(self, batch, batch_idx):
-        print_mem_info(f"batch={batch_idx}")
+        print(f'deebug: training step, batch={batch_idx}')
         x, y, _ = batch
         y_hat = self(x)
         
         return x, y, y_hat
 
     def training_step_end(self, batch_parts):
+        print('deebug: training_step_end')
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        self.log('training_loss', loss, on_step=True)
 
         iou = iou_score(y_hat, y)
         dice = dice_coef(y_hat, y)
         self.avg_meters['loss'].update(loss.item(), x.size(0))
         self.avg_meters['iou'].update(iou, x.size(0))
         self.avg_meters['dice'].update(dice, x.size(0))
-        return self.avg_meters
+        return {'loss': loss, 'avg_meters': self.avg_meters}
 
     def validation_step(self, batch, batch_idx):
+        print(f'deebug: validating, btch_idx={batch_idx}')
         x, y, _ = batch
         y_hat = self(x)
-        print(f'deebug: validating')
         return x, y, y_hat
   
 
