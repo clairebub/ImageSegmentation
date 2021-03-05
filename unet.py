@@ -140,16 +140,19 @@ class NestedUNet(pl.LightningModule):
         return {'loss': loss, 'avg_meters': self.avg_meters}
 
     def validation_step(self, batch, batch_idx):
-        print(f'deebug: validating, btch_idx={batch_idx}')
         x, y, _ = batch
         y_hat = self(x)
+        loss = self.criterion(x, y_hat, y)
+        print(f'\ndeebug: validation_step, batch_idx={batch_idx}, input.shape={batch[0].shape} loss={loss.item()}')
         return x, y, y_hat
   
 
     def validation_step_end(self, batch_parts):
+        print(f'\ndeebug: validation_step_end, batch_parts={type(batch_parts)}, {len(batch_parts)}')
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        self.log('validation_loss', loss, on_step=True)
+        print(f'\ndeebug: validation_step_end, loss={loss.item()}')
+        self.log('validation_loss', loss.item(), on_step=True)
         return loss
 
     def test_step(self, batch, batch_idx):
