@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
     parser.add_argument('--max_epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--gpus', default=torch.cuda.device_count(), type=int, metavar='N', help='number of gpus')
-    parser.add_argument('--accelerator', default='dp' if torch.cuda.is_available() else None, help='dp or ddp or None')
+    parser.add_argument('--accelerator', default='ddp' if torch.cuda.is_available() else None, help='dp or ddp or None')
     parser.add_argument('--precision', default=32, type=int, metavar='N', help='floating number precision')
 
     # train/test/predict
