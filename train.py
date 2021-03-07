@@ -53,52 +53,6 @@ def train(config, train_loader, model, criterion, optimizer):
 
             loss = criterion(input, output, target)
 
-        # loss = loss * 2
-
-        #     if config['weight_loss'] is True:
-        #         disease_loss = torch.mean(target[:, 0, :, :] * criterion(output[:, 0, :, :], target[:, 0, :, :]))
-        #         ratio = torch.sum(1 - target[:, 0, :, :]) / torch.sum(target[:, 0, :, :])
-        #
-        #         loss = loss + (ratio - 1) * disease_loss
-        #
-        #     # loss = criterion(output, target)
-        #
-        # # add lung loss based on lung segmentation gt
-        # if config['lung_loss'] is True:
-        #     output = torch.sigmoid(output)
-        #
-        #     disease_output = output[:, 0, :, :]
-        #     # lung_output = output[:, 1, :, :]
-        #
-        #     disease_output = disease_output > 0.5
-        #     # lung_output = lung_output > 0.5
-        #
-        #     lung_target = target[:, 1, :, :]
-        #     lung_loss_tensor = disease_output.float() - lung_target.float()
-        #
-        #     # diff = disease_output_.float() - lung_output_.float()
-        #     lung_loss_tensor[lung_loss_tensor < 0] = 0
-        #     lung_regularizer = torch.mean(lung_loss_tensor)
-        #
-        #     # coeff = torch.log10(loss / lung_regularizer)
-        #     # loss = loss + coeff * lung_regularizer / 2
-        #
-        #     loss = loss + 0.2 * lung_regularizer
-        #
-        # # add color loss based on covid prior knowledge - lighter contrast
-        # if config['color_loss'] is True:
-        #     # color_loss_tensor = target[:, 0, :, :] * input[:, 0, :, :] * criterion(output[:, 0, :, :], target[:, 0, :, :])
-        #
-        #     disease_output = output[:, 0, :, :]
-        #     inverse_disease_output = disease_output < 0.5
-        #     inverse_disease_output = inverse_disease_output.float()
-        #
-        #     color_loss_tensor = target[:, 0, :, :] * input[:, 0, :, :] * inverse_disease_output
-        #
-        #     color_regularizer = torch.mean(color_loss_tensor)
-        #
-        #     loss = loss + 0.6 * color_regularizer
-
         # compute gradient and do optimizing step
         optimizer.zero_grad()
         loss.backward()
@@ -285,16 +239,6 @@ def train_entry(config, ix_sum=10, ix=0):
         transforms.Resize(config['input_h'], config['input_w']),
         # normalize,
     ])
-
-    # train_transform = Compose([
-    #     # transforms.RandomBrightnessContrast(0.05),
-    #     # transforms.HueSaturationValue(),
-    #     transforms.Rotate(5),
-    #     # transforms.Resize(int(config['input_h'] * 1.1), int(config['input_w'] * 1.1)),
-    #     # transforms.RandomCrop(config['input_h'], config['input_w']),
-    #     transforms.Resize(config['input_h'], config['input_w']),
-    #     normalize,
-    # ])
 
     val_transform = Compose([
         transforms.Resize(config['input_h'], config['input_w']),
