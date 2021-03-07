@@ -117,36 +117,35 @@ class NestedUNet(pl.LightningModule):
         return output
 
     def training_step(self, batch, batch_idx):
-        logging.debug(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
+        logging.debug(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}")
         x, y, _ = batch
         y_hat = self(x)
-        
+        #return self.criterion(x, y_hat, y)
         return x, y, y_hat
 
     def training_step_end(self, batch_parts):
-        logging.debug(f"In training_step_end(): device={torch.cuda.current_device()}, batch.length={len(batch_parts)}")
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}")
+        if type(batch_parts) is torch.Tensor: 
+            return batch_parts.mean()
+          
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-
         iou = iou_score(y_hat, y)
         dice = dice_coef(y_hat, y)
-        self.avg_meters['loss'].update(loss.item(), x.size(0))
-        self.avg_meters['iou'].update(iou, x.size(0))
-        self.avg_meters['dice'].update(dice, x.size(0))
-        return {'loss': loss, 'avg_meters': self.avg_meters}
+        return loss
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
         loss = self.criterion(x, y_hat, y)
-        logging.debug(f"In validation_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
+        logging.debug(f"In validation_step(): device={torch.cuda.current_device()}, batch={batch_idx}, x.shape={x.shape}")
         return x, y, y_hat
   
 
     def validation_step_end(self, batch_parts):
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        logging.debug(f"In validation_step_end(): device={torch.cuda.current_device()}, batch.length={len(batch_parts)}")
+        logging.debug(f"In validation_step_end(): device={torch.cuda.current_device()}, x.shape={x.shape}")
         return loss
 
     def test_step(self, batch, batch_idx):
