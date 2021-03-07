@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pytorch_lightning as pl
@@ -12,6 +13,7 @@ from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 from metrics import iou_score, dice_coef
 from utils import AverageMeter
 
+logging.basicConfig(level=logging.DEBUG)
 
 class VGGBlock(nn.Module):
 
@@ -44,7 +46,7 @@ class NestedUNet(pl.LightningModule):
             'iou': AverageMeter(),
             'dice': AverageMeter()}
         self.criterion = BCEDiceLoss()
-        self.epochs = config['epochs']
+        self.max_epochs = config['max_epochs']
 
         # load trained model
         self.model_file = 'models/%s/model.pth' % config['name']
@@ -57,7 +59,7 @@ class NestedUNet(pl.LightningModule):
         num_classes = config['num_classes']
         input_channels = config['input_channels']
 
-        self.deep_supervision = config['deep_supervision']
+        self.deep_supervision = False
 
         self.pool = nn.MaxPool2d(2, 2)
         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
@@ -110,25 +112,19 @@ class NestedUNet(pl.LightningModule):
         x1_3 = self.conv1_3(torch.cat([x1_0, x1_1, x1_2, self.up(x2_2)], 1))
         x0_4 = self.conv0_4(torch.cat([x0_0, x0_1, x0_2, x0_3, self.up(x1_3)], 1))
 
-        if self.deep_supervision:
-            output1 = self.final1(x0_1)
-            output2 = self.final2(x0_2)
-            output3 = self.final3(x0_3)
-            output4 = self.final4(x0_4)
-            return [output1, output2, output3, output4]
-        else:
-            output = self.final(x0_4)
-            return output
+        output = self.final(x0_4)
+        logging.debug(f"In forward(): device={torch.cuda.current_device()}, input.shape={input.shape}, output.shape={output.shape}")
+        return output
 
     def training_step(self, batch, batch_idx):
-        print(f'deebug: training step, batch={batch_idx}')
+        logging.debug(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
         x, y, _ = batch
         y_hat = self(x)
         
         return x, y, y_hat
 
     def training_step_end(self, batch_parts):
-        print('deebug: training_step_end')
+        logging.debug(f"In training_step_end(): device={torch.cuda.current_device()}, batch.length={len(batch_parts)}")
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
 
@@ -143,16 +139,14 @@ class NestedUNet(pl.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
         loss = self.criterion(x, y_hat, y)
-        print(f'\ndeebug: validation_step, batch_idx={batch_idx}, input.shape={batch[0].shape} loss={loss.item()}')
+        logging.debug(f"In validation_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
         return x, y, y_hat
   
 
     def validation_step_end(self, batch_parts):
-        print(f'\ndeebug: validation_step_end, batch_parts={type(batch_parts)}, {len(batch_parts)}')
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        print(f'\ndeebug: validation_step_end, loss={loss.item()}')
-        self.log('validation_loss', loss.item(), on_step=True)
+        logging.debug(f"In validation_step_end(): device={torch.cuda.current_device()}, batch.length={len(batch_parts)}")
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -168,5 +162,5 @@ class NestedUNet(pl.LightningModule):
         weight_decay = 1e-4
         params = filter(lambda p: p.requires_grad, self.parameters())
         sgd = optim.SGD(params, lr=lr, momentum=momentum, weight_decay=weight_decay)
-        scheduler = lr_scheduler.CosineAnnealingLR(sgd, self.epochs)
+        scheduler = lr_scheduler.CosineAnnealingLR(sgd, self.max_epochs)
         return [sgd], [scheduler]

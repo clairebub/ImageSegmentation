@@ -5,9 +5,12 @@ import os
 import matplotlib.pyplot as plt
 import torch 
 import torch.nn as nn 
+import torch.optim as optim
+from torch.optim import lr_scheduler
 import pytorch_lightning as pl
 import torchvision
 
+import data_module
 import utils
 
 
@@ -25,31 +28,19 @@ class RandomDataset(torch.utils.data.Dataset):
         return self.len
     
 
-class DataModule(pl.LightningDataModule):
+class RandomDataset2(torch.utils.data.Dataset):
 
-    def __init__(self):
-        super().__init__()
-        self.train_ids, self.val_ids, self.test_ids = None, None, None
+    def __init__(self, input_size, output_size, num_inputs):
+        self.len = num_inputs
+        self.x = torch.randn(num_inputs, input_size)
+        self.y = torch.randn(num_inputs, output_size)
 
-    def prepare_data(self):
-        # This method is used to define the processes that are meant to be 
-        # performed by only one GPU. It’s usually used to handle the task of
-        # downloading the data. 
-        pass
+    def __getitem__(self, index):
+        logging.debug(f'data_loader worker info: {torch.utils.data.get_worker_info()}')
+        return self.x[index], self.y[index], index
 
-    def setup(self, stage=None):
-        # This method is used to define the process that is meant to be performed by all the available GPU. 
-        # It’s usually used to handle the task of loading the data. 
-        pass
-
-    def train_dataloader(self):
-        pass
-
-    def val_dataloader(self):
-        pass
-
-    def test_dataloader(self):
-        raise NotImplementedError
+    def __len__(self):
+        return self.len
 
 
 class Model(nn.Module):
@@ -64,23 +55,123 @@ class Model(nn.Module):
         return output
 
 
+class DataModule(pl.LightningDataModule):
+
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+    def prepare_data(self):
+        # This method is used to define the processes that are meant to be 
+        # performed by only one GPU. It’s usually used to handle the task of
+        # downloading the data. 
+        pass
+
+    def setup(self, stage=None):
+        # This method is used to define the process that is meant to be performed by all the available GPU. 
+        # It’s usually used to handle the task of loading the data. 
+        pass
+
+    def train_dataloader(self):
+        dataset = RandomDataset2(
+            config['input_size'],
+            config['output_size'],
+            config['num_inputs'])
+        return torch.utils.data.DataLoader(
+            dataset,
+            batch_size=self.config['batch_size'],
+            num_workers=self.config['num_workers'],
+            pin_memory=self.config['pin_memory'],
+            shuffle=True, 
+            drop_last=True)
+
+    def val_dataloader(self):
+        raise NotImplementedError
+
+    def test_dataloader(self):
+        raise NotImplementedError
+
+
+class Model2(pl.LightningModule):
+
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.net = Model(config['input_size'], config['output_size'])
+        self.criterion = nn.MSELoss()
+
+    def forward(self, input):
+        output = self.net(input)
+        logging.info(f"In Model2: device={torch.cuda.current_device()}, input.shape={input.shape}, output.shape={output.shape}")
+        return output
+
+    def training_step(self, batch, batch_idx):
+        logging.info(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
+        x, y, _ = batch
+        y_hat = self(x)
+        loss = self.criterion(y_hat, y)
+        return loss 
+
+    def training_step_end(self, batch_parts):
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}, batch_parts={batch_parts}")   
+        loss = batch_parts
+        if len(loss.shape) > 0:
+            loss = torch.mean(loss)
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}, loss={loss}")   
+        return loss
+
+    def configure_optimizers(self):
+        lr = 1e-3
+        momentum = 0.9
+        weight_decay = 1e-4
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        sgd = optim.SGD(params, lr=lr, momentum=momentum, weight_decay=weight_decay)
+        scheduler = lr_scheduler.CosineAnnealingLR(sgd, self.config['max_epochs'])
+        return [sgd], [scheduler]
+
+
+def debug_lighting(args):
+    config = vars(args)
+    model = Model2(config)
+    dm = DataModule(config)
+    dm.prepare_data()
+    dm.setup()
+    trainer = pl.Trainer.from_argparse_args(args)
+
+    # run the trainer
+    if(config['gpus'] != 0):
+        torch.cuda.empty_cache()
+    trainer.fit(model, dm.train_dataloader())
+    pass 
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--gpus', default=torch.cuda.device_count(), type=int, metavar='N', help='number of gpus')
+    parser.add_argument('--accelerator', default='dp' if torch.cuda.is_available() else None, help='dp or ddp or None')
     parser.add_argument('--max_epochs', default=3, type=int, metavar='N', help='max number of epochs')
     parser.add_argument('--num_workers', default=os.cpu_count(), type=int, metavar='N', help='number of data loader workers')
-    parser.add_argument('--num_gpus', default=torch.cuda.device_count(), type=int, metavar='N', help='number of gpus')
     parser.add_argument('--input_size', default=2, type=int, metavar='N')
     parser.add_argument('--output_size', default=4, type=int, metavar='N')
     parser.add_argument('--num_inputs', default=1000, type=int, metavar='N', help='number of input samples')
     parser.add_argument('-b', '--batch_size', default=16, type=int, metavar='N', help='batch size')
     parser.add_argument('--pin_memory', default=True, type=utils.str2bool)
-    config = vars(parser.parse_args())
+    parser.add_argument('--input_w', default=512, type=int, help='image width')
+    parser.add_argument('--input_h', default=512, type=int, help='image height')
+    
+    args = parser.parse_args()
+    config = vars(args)
 
     logging.basicConfig(level=logging.INFO)
     logging.info("=" * 40)
     for k in sorted(config):
         logging.info(f'{k}={config[k]}')
     logging.info("=" * 40)
+
+    debug_lighting(args)
+    import sys
+    sys.exit(1)
 
     targets = torch.rand(config['batch_size'], config['output_size'])
     dataset = RandomDataset(config['input_size'], config['num_inputs'])
@@ -93,7 +184,7 @@ if __name__ == '__main__':
         drop_last=True)
     model = Model(config['input_size'], config['output_size'])
     model = nn.DataParallel(model)
-    if config['num_gpus'] > 0:
+    if config['gpus'] > 0:
         model = model.cuda()
         targets = targets.cuda()
    

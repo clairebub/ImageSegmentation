@@ -1,10 +1,9 @@
 import os
 import sys
-from utils import str2bool 
+
 
 import argparse
-from albumentations.augmentations import transforms
-from albumentations.core.composition import Compose
+
 import pytorch_lightning as pl
 import torch
 import yaml
@@ -13,46 +12,35 @@ import archs
 import data_module
 import losses
 import unet
+import utils
+
 
 ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
 
-def main(config): 
-    os.makedirs('models/%s' % config['name'], exist_ok=True)
-
-    print('-' * 20)
-    for key in config:
+def main(args): 
+    config = vars(args)
+    if config['name'] is None:
+        config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
+    print('=' * 40)
+    for key in sorted(config):
         print('%s: %s' % (key, config[key]))
-    print('-' * 20)
-
+    print('=' * 40)
+    os.makedirs('models/%s' % config['name'], exist_ok=True)
     with open('models/%s/config.yml' % config['name'], 'w') as f:
         yaml.dump(config, f)
 
-    train_transform = Compose([
-        transforms.RandomRotate90(),
-        transforms.Flip(),
-        transforms.Resize(config['input_h'], config['input_w']),
-    ])
-    val_transform = Compose([
-        transforms.Resize(config['input_h'], config['input_w']),
-    ])
-    dm = data_module.DataModule(config, train_transform, val_transform)
+    # set up the model, data module and trainer  
+    model = unet.NestedUNet(config)
+    dm = data_module.DataModule(config)
     dm.prepare_data()
     dm.setup()
+    trainer = pl.Trainer.from_argparse_args(args)
 
+    # run the trainer
     if(config['gpus'] != 0):
         torch.cuda.empty_cache()
-
-    # train the nested-unet model    
-    model = unet.NestedUNet(config)
-    trainer = pl.Trainer(
-        check_val_every_n_epoch=1,
-        distributed_backend='ddp', 
-        gpus=config['gpus'],
-        precision=config['precision'], 
-#        profiler='simple', 
-        max_epochs=config['epochs'])
     trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
 
     # testing
@@ -62,25 +50,24 @@ def main(config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
-    parser.add_argument('--epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
-    parser.add_argument('--gpus', default=0, type=int, metavar='N', help='number of gpus')
+    parser.add_argument('--max_epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--gpus', default=torch.cuda.device_count(), type=int, metavar='N', help='number of gpus')
+    parser.add_argument('--accelerator', default='ddp' if torch.cuda.is_available() else None, help='dp or ddp or None')
     parser.add_argument('--precision', default=32, type=int, metavar='N', help='floating number precision')
 
-    # train/test
+    # train/test/predict
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--two_step_test', action='store_true')
     parser.add_argument('--predict', action='store_true')
-    parser.add_argument('--seg_img', default='seg_img', choices=['seg_only', 'seg_img', 'gt', 'crop_img'])
 
     # model
+    parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
     parser.add_argument('--arch', '-a', metavar='ARCH', default='NestedUNet',
                         help='model architecture: ' +
                         ' | '.join(ARCH_NAMES) +
                         ' (default: NestedUNet)')
-    parser.add_argument('--deep_supervision', default=False, type=str2bool)
     parser.add_argument('--loss', default='BCEDiceLoss',
                         choices=LOSS_NAMES,
                         help='loss: ' +
@@ -96,8 +83,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_classes', default=1, type=int, help='number of classes')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')
+    parser.add_argument('--num_workers', default=os.cpu_count(), type=int, metavar='N', help='number of data loader workers')
+    parser.add_argument('--pin_memory', default=True, type=utils.str2bool)
 
-    config = vars(parser.parse_args())
-    if config['name'] is None:
-        config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
-    main(config)
+    args = parser.parse_args()
+    main(args)
