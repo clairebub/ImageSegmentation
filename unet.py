@@ -13,7 +13,7 @@ from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 from metrics import iou_score, dice_coef
 from utils import AverageMeter
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 class VGGBlock(nn.Module):
 
