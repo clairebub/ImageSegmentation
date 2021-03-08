@@ -13,7 +13,7 @@ from losses import BCEDiceLoss, BCEDiceLungLoss, WeightedBCEDiceLoss
 from metrics import iou_score, dice_coef
 from utils import AverageMeter
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 class VGGBlock(nn.Module):
 
@@ -117,7 +117,7 @@ class NestedUNet(pl.LightningModule):
         return output
 
     def training_step(self, batch, batch_idx):
-        logging.debug(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}")
+        logging.info(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}")
         x, y, _ = batch
         y_hat = self(x)
         #return self.criterion(x, y_hat, y)

@@ -22,7 +22,7 @@ LOSS_NAMES.append('BCEWithLogitsLoss')
 def main(args): 
     config = vars(args)
     if config['name'] is None:
-        config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
+        config['name'] = 'pl_%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
     print('=' * 40)
     for key in sorted(config):
         print('%s: %s' % (key, config[key]))
@@ -36,11 +36,11 @@ def main(args):
     dm = data_module.DataModule(config)
     dm.prepare_data()
     dm.setup()
-    trainer = pl.Trainer.from_argparse_args(args)
 
     # run the trainer
     if(config['gpus'] != 0):
         torch.cuda.empty_cache()
+    trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(model, dm.train_dataloader(), dm.val_dataloader())
 
     # testing
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', default=2, type=int, metavar='N', help='mini-batch size')
     parser.add_argument('--max_epochs', default=2, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--gpus', default=torch.cuda.device_count(), type=int, metavar='N', help='number of gpus')
-    parser.add_argument('--accelerator', default='ddp' if torch.cuda.is_available() else None, help='dp or ddp or None')
+    parser.add_argument('--accelerator', default='dp' if torch.cuda.is_available() else None, help='dp or ddp or None')
     parser.add_argument('--precision', default=32, type=int, metavar='N', help='floating number precision')
 
     # train/test/predict
@@ -79,7 +79,8 @@ if __name__ == '__main__':
     parser.add_argument('--sub_dataset', default='disease', help='sub_dataset name')
     parser.add_argument('--img_ext', default='.jpg', help='image file extension')
     parser.add_argument('--mask_ext', default='.png', help='mask file extension')
-    parser.add_argument('--input_channels', default=3, type=int, help='input channels') # 1 or 3        
+    parser.add_argument('--input_channels', default=3, type=int, help='input channels') # 1 or 3    
+    parser.add_argument('--num_inputs', default=32, type=int, help='number of inputs')    
     parser.add_argument('--num_classes', default=1, type=int, help='number of classes')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')

@@ -14,6 +14,9 @@ from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose, OneOf
 from sklearn.model_selection import train_test_split
 from torch.optim import lr_scheduler
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.multiprocessing as mp
+import torch.distributed as dist
 from tqdm import tqdm
 
 import archs
@@ -23,6 +26,25 @@ from metrics import iou_score, dice_coef
 from utils import AverageMeter
 from test import test_per_class
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # initialize the process group
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
+
+def demo_basic(rank, world_size):
+    print(f"Running basic DDP example on rank {rank}, device={torch.cuda.current_device()}")
+    setup(rank, world_size)
+
+    # create model and move it to GPU with id rank
+    # model = ToyModel().to(rank)
+    # ddp_model = DDP(model, device_ids=[rank])
+
+    cleanup()
 
 def train(config, train_loader, model, criterion, optimizer):
     avg_meters = {'loss': AverageMeter(),
@@ -133,15 +155,11 @@ def validate(config, val_loader, model, criterion):
     ])
 
 
-def train_entry(config, ix_sum=10, ix=0):
+def train_entry(config, rank=-1, world_size=0):
+    if (rank > 0): 
+        setup(rank, world_size)
 
     os.makedirs('models/%s' % config['name'], exist_ok=True)
-
-    print('-' * 20)
-    for key in config:
-        print('%s: %s' % (key, config[key]))
-    print('-' * 20)
-
     with open('models/%s/config.yml' % config['name'], 'w') as f:
         yaml.dump(config, f)
 
@@ -160,9 +178,12 @@ def train_entry(config, ix_sum=10, ix=0):
     model = getattr(archs, arch)(config['num_classes'],
                                  config['input_channels'],
                                  config['deep_supervision'])
-
     model = nn.DataParallel(model)
-    model = model.cuda()
+    print(f'rank={rank}, device={torch.cuda.current_device()}')
+    if rank >= 0:
+        model = DDP(model, device_ids=[rank])
+    else:
+        model = model.cuda()
 
     # load trained model
     model_file = 'models/%s/model.pth' % config['name']
@@ -198,6 +219,8 @@ def train_entry(config, ix_sum=10, ix=0):
     img_ids = glob(os.path.join(data_path, config['sub_dataset'], 'images', '*' + config['img_ext']))
     # img_ids = [os.path.basename(p) for p in img_ids]
     img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_ids]
+    if config['num_inputs'] > 0:
+        img_ids = img_ids[:config['num_inputs']]
     train_img_ids, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
 
     split_filename = os.path.join(data_path, 'split.p')
@@ -244,10 +267,6 @@ def train_entry(config, ix_sum=10, ix=0):
         transforms.Resize(config['input_h'], config['input_w']),
         # normalize,
     ])
-
-    # split_len = len(img_ids) // ix_sum
-    # val_img_ids = img_ids[ix * split_len: (ix + 1) * split_len]
-    # train_img_ids = img_ids[:ix * split_len] + img_ids[(ix + 1) * split_len:]
 
     train_dataset = Dataset(
         img_ids=train_img_ids,
@@ -370,5 +389,8 @@ def train_entry(config, ix_sum=10, ix=0):
         print('- [Overall IoU] %.4f' % best_iou)
         for class_id in range(config['num_classes']):
             print('-- [class %d IoU] %.4f' % (class_id, best_iou_per_class[class_id]))
+
+    if rank >= 0: 
+        cleanup()
 
     return best_iou

@@ -34,6 +34,7 @@ class DataModule(pl.LightningDataModule):
         self.val_transform = val_transform
         self.test_transform = None
         self.train_ids, self.val_ids, self.test_ids = None, None, None
+        self.num_inputs = config['num_inputs']
 
     def prepare_data(self):
         # This method is used to define the processes that are meant to be 
@@ -46,6 +47,8 @@ class DataModule(pl.LightningDataModule):
         # It’s usually used to handle the task of loading the data. 
         img_files = glob(os.path.join(self.data_dir, 'images', '*'+self.img_ext))
         img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_files]
+        if self.num_inputs > 0:
+            img_ids = img_ids[:self.num_inputs]
         train_size = int(len(img_ids) * 0.9)
         val_size = len(img_ids) - train_size
         self.train_ids, self.val_ids = random_split(

@@ -1,34 +1,29 @@
 import argparse
+
+import torch
+import torch.multiprocessing as mp
+import torch.distributed as dist
+
 import archs
 import losses
-
-from utils import str2bool
-from train import train_entry
 from test import test_entry
+from train import train_entry, demo_basic
 from two_step_test import two_step_test_entry
+from utils import str2bool
 
 ARCH_NAMES = list(archs.__dict__.keys())
 LOSS_NAMES = list(losses.__dict__.keys())
 LOSS_NAMES.append('BCEWithLogitsLoss')
 
-"""restrict GPU option"""
-# find most open GPU (default use 8 gpus)
-# gpu_list = get_default_gpus(4)
-# gpu_ids = ','.join(map(str, gpu_list))
-#
-# allocate GPU
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids
-#
-# #print("Allocated GPU %s" % gpu_ids)
-
+             
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default=None, help='model name: (default: arch+timestamp)')
-    parser.add_argument('--epochs', default=300, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--epochs', default=1, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('-b', '--batch_size', default=16, type=int, metavar='N', help='mini-batch size (default: 16)')
-
+    parser.add_argument('--accelerator', default='dp' if torch.cuda.is_available() else None, help='dp or ddp or None')
+    parser.add_argument('--world_size', default=torch.cuda.device_count(), help='dp or ddp or None')
     # train/test
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--test', action='store_true')
@@ -55,10 +50,11 @@ def parse_args():
 
     # dataset
     parser.add_argument('--dataset', default='0420', help='dataset name')
-    parser.add_argument('--sub_dataset', default='lung', help='sub_dataset name')
+    parser.add_argument('--sub_dataset', default='disease', help='sub_dataset name')
     parser.add_argument('--img_ext', default='.jpg', help='image file extension')
     parser.add_argument('--mask_ext', default='.png', help='mask file extension')
     parser.add_argument('--num_classes', default=1, type=int, help='number of classes')
+    parser.add_argument('--num_inputs', default=0, type=int, help='number of inputs')
     parser.add_argument('--input_w', default=512, type=int, help='image width')
     parser.add_argument('--input_h', default=512, type=int, help='image height')
 
@@ -81,8 +77,7 @@ def parse_args():
     parser.add_argument('--patience', default=10, type=int)
     parser.add_argument('--milestones', default='1,2', type=str)
     parser.add_argument('--gamma', default=2/3, type=float)
-    parser.add_argument('--early_stopping', default=-1, type=int, metavar='N', help='early stopping (default: -1)')
-    
+    parser.add_argument('--early_stopping', default=-1, type=int, metavar='N', help='early stopping (default: -1)')   
     parser.add_argument('--num_workers', default=4, type=int)
 
     config = parser.parse_args()
@@ -98,11 +93,23 @@ if __name__ == '__main__':
             config['name'] = '%s_%s_%s_%s_wDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
         else:
             config['name'] = '%s_%s_%s_%s_woDS' % (config['dataset'], config['sub_dataset'], config['arch'], config['loss'])
+    
+    print('-' * 20)
+    for key in sorted(config):
+        print('%s: %s' % (key, config[key]))
+    print('-' * 20)
 
     if config['train']:
         # train
-        iou = train_entry(config, ix_sum=10)
-        # print(iou)
+        if config['accelerator'] == 'ddp':
+            world_size = config['world_size']
+            print('spawn train_entry for ddp')
+            mp.spawn(demo_basic,
+                     args=(world_size,),
+                     nprocs=world_size,
+                     join=True)
+        else:
+            train_entry(config)
     elif config['test']:
         # test
         test_entry(config)
