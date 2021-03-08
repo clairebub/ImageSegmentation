@@ -51,7 +51,7 @@ class Model(nn.Module):
 
     def forward(self, input):
         output = self.fc(input)
-        logging.info(f"In Model: device={torch.cuda.current_device()}, input.shape={input.shape}, output.shape={output.shape}")
+        logging.info(f"In Model: device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, input.shape={input.shape}, output.shape={output.shape}")
         return output
 
 
@@ -102,22 +102,22 @@ class Model2(pl.LightningModule):
 
     def forward(self, input):
         output = self.net(input)
-        logging.info(f"In Model2: device={torch.cuda.current_device()}, input.shape={input.shape}, output.shape={output.shape}")
+        logging.info(f"In Model2: device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, input.shape={input.shape}, output.shape={output.shape}")
         return output
 
     def training_step(self, batch, batch_idx):
-        logging.info(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}, batch.length={len(batch)}")
+        logging.info(f"In training_step(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0 }, batch={batch_idx}, batch.length={len(batch)}")
         x, y, _ = batch
         y_hat = self(x)
         loss = self.criterion(y_hat, y)
         return loss 
 
     def training_step_end(self, batch_parts):
-        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}, batch_parts={batch_parts}")   
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, batch_parts={batch_parts}")   
         loss = batch_parts
         if len(loss.shape) > 0:
             loss = torch.mean(loss)
-        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}, loss={loss}")   
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, loss={loss}")   
         return loss
 
     def configure_optimizers(self):

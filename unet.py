@@ -113,18 +113,18 @@ class NestedUNet(pl.LightningModule):
         x0_4 = self.conv0_4(torch.cat([x0_0, x0_1, x0_2, x0_3, self.up(x1_3)], 1))
 
         output = self.final(x0_4)
-        logging.debug(f"In forward(): device={torch.cuda.current_device()}, input.shape={input.shape}, output.shape={output.shape}")
+        logging.debug(f"In forward(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, input.shape={input.shape}, output.shape={output.shape}")
         return output
 
     def training_step(self, batch, batch_idx):
-        logging.info(f"In training_step(): device={torch.cuda.current_device()}, batch={batch_idx}")
+        logging.info(f"In training_step(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, batch={batch_idx}")
         x, y, _ = batch
         y_hat = self(x)
         #return self.criterion(x, y_hat, y)
         return x, y, y_hat
 
     def training_step_end(self, batch_parts):
-        logging.info(f"In training_step_end(): device={torch.cuda.current_device()}")
+        logging.info(f"In training_step_end(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}")
         if type(batch_parts) is torch.Tensor: 
             return batch_parts.mean()
           
@@ -138,14 +138,14 @@ class NestedUNet(pl.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
         loss = self.criterion(x, y_hat, y)
-        logging.debug(f"In validation_step(): device={torch.cuda.current_device()}, batch={batch_idx}, x.shape={x.shape}")
+        logging.debug(f"In validation_step(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, batch={batch_idx}, x.shape={x.shape}")
         return x, y, y_hat
   
 
     def validation_step_end(self, batch_parts):
         x, y, y_hat = batch_parts
         loss = self.criterion(x, y_hat, y)
-        logging.debug(f"In validation_step_end(): device={torch.cuda.current_device()}, x.shape={x.shape}")
+        logging.debug(f"In validation_step_end(): device={torch.cuda.current_device() if torch.cuda.is_available() else 0}, x.shape={x.shape}")
         return loss
 
     def test_step(self, batch, batch_idx):
